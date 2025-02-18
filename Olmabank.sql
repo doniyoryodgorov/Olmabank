@@ -226,5 +226,182 @@ CREATE TABLE Olmabank_loans.Loans (
     Status NVARCHAR(20) CHECK (Status IN ('Active', 'Closed', 'Defaulted')),
     CONSTRAINT FK_Loans_Customers FOREIGN KEY (CustomerID) 
         REFERENCES olmabank_core.Customers(CustomerID)
+	);
+
+CREATE TABLE Olmabank_loans.LoanPayments(
+	PaymentID INT PRIMARY KEY IDENTITY(1,1),
+	LoanID INT NOT NULL,
+	AmountPaid DECIMAL(18,2) CHECK (AmountPaid > 0) NOT NULL,
+	PaymentDate DATE,
+	RemainingBalance DECIMAL(18,2) CHECK (RemainingBalance >= 0) NOT NULL
+	CONSTRAINT FK_LoanPayments_Loans FOREIGN KEY(LoanID)
+	REFERENCES Olmabank_loans.Loans (LoanID)
+	);
+
+USE olmabank;
+GO
+
+DECLARE @i INT = 1;
+DECLARE @LoanID INT;
+DECLARE @LoanAmount DECIMAL(18,2);
+DECLARE @StartDate DATE;
+DECLARE @EndDate DATE;
+DECLARE @AmountPaid DECIMAL(18,2);
+DECLARE @PaymentDate DATE;
+DECLARE @RemainingBalance DECIMAL(18,2);
+
+WHILE @i <= 10000
+BEGIN
+    -- LoanID ni tasodifiy tanlaymiz
+    SELECT TOP 1 @LoanID = LoanID, 
+                 @LoanAmount = Amount, 
+                 @StartDate = StartDate, 
+                 @EndDate = EndDate
+    FROM olmabank_loans.Loans 
+    ORDER BY NEWID();
+
+    -- To'lov miqdorini aniqlaymiz (10% - 90% oralig'ida)
+    SET @AmountPaid = ROUND((RAND() * (@LoanAmount * 0.8) + (@LoanAmount * 0.1)), 2);
+
+    -- PaymentDate kredit boshlanishidan oldin emas va tugash sanasidan keyin emas
+    SET @PaymentDate = DATEADD(DAY, ABS(CHECKSUM(NEWID()) % 365), @StartDate);
+    IF @PaymentDate > @EndDate
+        SET @PaymentDate = @EndDate;
+
+    -- Qolgan balans (to'lovdan keyin)
+    SET @RemainingBalance = @LoanAmount - @AmountPaid;
+    IF @RemainingBalance < 0 
+        SET @RemainingBalance = 0;
+
+    -- Ma'lumotlarni LoanPayments jadvaliga qo'shish
+    INSERT INTO olmabank_loans.LoanPayments (LoanID, AmountPaid, PaymentDate, RemainingBalance)
+    VALUES (@LoanID, @AmountPaid, @PaymentDate, @RemainingBalance);
+
+    SET @i = @i + 1;
+END;
+GO
+
+USE olmabank;
+GO
+
+CREATE TABLE Olmabank_loans.CreditScores(
+	CustomerID INT NOT NULL,
+	CreditScore INT CHECK (CreditScore BETWEEN 300 AND 850) NOT NULL,
+	UpdatedAt DATE,
+	CONSTRAINT FK_CreditScores_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID)
 );
+GO
+
+USE olmabank;
+GO
+
+-- 1️⃣ `CreditScores` jadvalini yaratamiz
+IF OBJECT_ID('olmabank_loans.CreditScores', 'U') IS NOT NULL
+    DROP TABLE olmabank_loans.CreditScores;
+GO
+
+CREATE TABLE olmabank_loans.CreditScores (
+    CustomerID INT NOT NULL,
+    CreditScore INT CHECK (CreditScore BETWEEN 300 AND 400) NOT NULL, -- Max 400
+    UpdatedAt DATE NOT NULL,
+    CONSTRAINT FK_CreditScores_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+-- 2️⃣ `CreditScores` jadvaliga 10,000+ qator qo‘shish uchun `WHILE` sikli
+DECLARE @i INT = 1;
+DECLARE @CustomerID INT;
+DECLARE @CreditScore INT;
+DECLARE @LoanStartDate DATE;
+DECLARE @UpdatedAt DATE;
+
+WHILE @i <= 10000
+BEGIN
+    -- CustomerID ni tasodifiy tanlaymiz
+    SELECT TOP 1 @CustomerID = CustomerID 
+    FROM olmabank_core.Customers 
+    ORDER BY NEWID();
+
+    -- Kredit olgan mijozni tanlaymiz va kredit boshlanish sanasini olamiz
+    SELECT TOP 1 @LoanStartDate = StartDate 
+    FROM olmabank_loans.Loans 
+    WHERE CustomerID = @CustomerID
+    ORDER BY NEWID();
+
+    -- Agar mijoz kredit olgan bo'lsa, `CreditScores` qo‘shamiz
+    IF @LoanStartDate IS NOT NULL
+    BEGIN
+        -- Tasodifiy `CreditScore` yaratamiz (300 - 400 oralig‘ida)
+        SET @CreditScore = 300 + ABS(CHECKSUM(NEWID()) % 101); 
+
+        -- `UpdatedAt` kredit start sanasidan oldin bo‘lishi kerak
+        SET @UpdatedAt = DATEADD(YEAR, -ABS(CHECKSUM(NEWID()) % 5), @LoanStartDate);
+
+        -- Ma’lumotlarni qo‘shamiz
+        INSERT INTO olmabank_loans.CreditScores (CustomerID, CreditScore, UpdatedAt)
+        VALUES (@CustomerID, @CreditScore, @UpdatedAt);
+    END;
+
+    SET @i = @i + 1;
+END;
+GO
+
+USE olmabank;
+GO
+
+CREATE TABLE Olmabank_loans.DebtCollection(
+	DebtID INT PRIMARY KEY IDENTITY(1,1),
+	CustomerID INT NOT NULL,
+	AmountDue DECIMAL(18,2)CHECK (AmountDue > 0) NOT NULL,
+	DueDate DATE,
+	CollectorAssigned NVARCHAR(100) NOT NULL,
+	CONSTRAINT FK_DebtCollection_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+
+CREATE TABLE olmabank_risk.KYC (
+    KYCID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    DocumentType NVARCHAR(50) NOT NULL,
+    DocumentNumber NVARCHAR(50) UNIQUE NOT NULL,
+    VerifiedBy NVARCHAR(100) NOT NULL,
+    CONSTRAINT FK_KYC_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+USE olmabank;
+GO
+
+DECLARE @i INT = 1;
+DECLARE @CustomerID INT;
+DECLARE @DocumentType NVARCHAR(50);
+DECLARE @DocumentNumber NVARCHAR(50);
+DECLARE @VerifiedBy NVARCHAR(100);
+
+WHILE @i <= 10000
+BEGIN
+    -- Tasodifiy CustomerID
+    SET @CustomerID = (SELECT TOP 1 CustomerID FROM olmabank_core.Customers ORDER BY NEWID());
+
+    -- Tasodifiy hujjat turi
+    SET @DocumentType = (SELECT TOP 1 DocumentType FROM (VALUES ('Passport'), ('National ID'), ('Tax Document'), ('Driver''s License')) AS Docs(DocumentType));
+
+    -- Noyob hujjat raqami
+    SET @DocumentNumber = CAST(ABS(CHECKSUM(NEWID())) % 900000000 + 100000000 AS NVARCHAR(50)) + '-' + CAST(ABS(CHECKSUM(NEWID())) % 900 + 100 AS NVARCHAR(50));
+
+    -- Tasodifiy tasdiqlovchi xodim
+    SET @VerifiedBy = 'Officer ' + CAST(ABS(CHECKSUM(NEWID())) % 100 + 1 AS NVARCHAR(10));
+
+    -- Ma'lumotlarni jadvalga kiritish
+    INSERT INTO olmabank_risk.KYC (CustomerID, DocumentType, DocumentNumber, VerifiedBy)
+    VALUES (@CustomerID, @DocumentType, @DocumentNumber, @VerifiedBy);
+
+    SET @i = @i + 1;
+END;
+GO
 
