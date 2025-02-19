@@ -405,3 +405,129 @@ BEGIN
 END;
 GO
 
+USE olmabank;
+GO
+
+CREATE TABLE olmabank_risk.FraudDetection (
+    FraudID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    TransactionID INT NOT NULL,
+    RiskLevel NVARCHAR(20) CHECK (RiskLevel IN ('Low', 'Medium', 'High')) NOT NULL,
+    ReportedDate DATE NOT NULL,
+    CONSTRAINT FK_FraudDetection_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID),
+    CONSTRAINT FK_FraudDetection_Transactions FOREIGN KEY (TransactionID) 
+        REFERENCES olmabank_core.Transactions(TransactionID)
+);
+GO
+
+
+USE olmabank;
+GO
+
+DECLARE @i INT = 1;
+DECLARE @CustomerID INT;
+DECLARE @TransactionID INT;
+DECLARE @RiskLevel NVARCHAR(20);
+DECLARE @ReportedDate DATE;
+
+WHILE @i <= 10000
+BEGIN
+    -- Mavjud tranzaksiyalarni mijoz bilan bog‘lab tanlaymiz
+    SELECT TOP 1 @TransactionID = t.TransactionID, @CustomerID = a.CustomerID
+    FROM olmabank_core.Transactions t
+    INNER JOIN olmabank_core.Accounts a ON t.AccountID = a.AccountID
+    ORDER BY NEWID();
+
+    -- Agar TransactionID va CustomerID mavjud bo‘lsa, FraudDetection jadvaliga qo‘shish
+    IF @TransactionID IS NOT NULL AND @CustomerID IS NOT NULL
+    BEGIN
+        -- Risk Level tasodifiy tanlash (barchasi `Low` bo‘lib qolmasligi uchun)
+        SET @RiskLevel = 
+            CASE 
+                WHEN ABS(CHECKSUM(NEWID())) % 3 = 0 THEN 'Low'
+                WHEN ABS(CHECKSUM(NEWID())) % 3 = 1 THEN 'Medium'
+                ELSE 'High'
+            END;
+
+        -- Firibgarlik aniqlangan sanani tasodifiy tanlash
+        SET @ReportedDate = DATEADD(DAY, -ABS(CHECKSUM(NEWID()) % 365), GETDATE());
+
+        -- Ma’lumotlarni qo‘shish
+        INSERT INTO olmabank_risk.FraudDetection (CustomerID, TransactionID, RiskLevel, ReportedDate)
+        VALUES (@CustomerID, @TransactionID, @RiskLevel, @ReportedDate);
+    END;
+
+    SET @i = @i + 1;
+END;
+GO
+
+USE olmabank;
+GO
+
+CREATE TABLE olmabank_risk.AML_Cases (
+    CaseID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    CaseType NVARCHAR(100) NOT NULL,
+    Status NVARCHAR(20) CHECK (Status IN ('Open', 'Under Investigation', 'Closed')) NOT NULL,
+    InvestigatorID INT NOT NULL,
+    CONSTRAINT FK_AML_Cases_Customers FOREIGN KEY (CustomerID) 
+        REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+--Ma'lumotlar avtomatik tarzda insert qilindi
+
+USE olmabank;
+GO
+
+truncate table olmabank_risk.RegulatoryReports
+
+USE olmabank;
+GO
+
+DECLARE @i INT = 1;
+DECLARE @ReportType NVARCHAR(100);
+DECLARE @SubmissionDate DATE;
+DECLARE @Year INT;
+DECLARE @Month INT;
+
+WHILE @i <= 2000
+BEGIN
+    -- Tasodifiy yilni tanlaymiz (2022, 2023, 2024)
+    SET @Year = 2022 + ABS(CHECKSUM(NEWID()) % 3);
+
+    -- Tasodifiy hisobot turini tanlaymiz
+    SET @ReportType = (SELECT TOP 1 ReportType 
+                       FROM (VALUES ('AML Compliance'), 
+                                    ('Fraud Report'), 
+                                    ('Regulatory Audit'), 
+                                    ('Customer Due Diligence')) AS Reports(ReportType));
+
+    -- Hisobot turiga qarab submission_date belgilaymiz
+    IF @ReportType IN ('AML Compliance', 'Fraud Report', 'Customer Due Diligence')
+    BEGIN
+        -- Har oylik (1 dan 12 gacha)
+        SET @Month = ABS(CHECKSUM(NEWID()) % 12) + 1;
+        SET @SubmissionDate = DATEFROMPARTS(@Year, @Month, 1);
+    END
+    ELSE IF @ReportType = 'Regulatory Audit'
+    BEGIN
+        -- Har yillik
+        SET @SubmissionDate = DATEFROMPARTS(@Year, 1, 1);
+    END
+
+    -- Ma’lumotlarni RegulatoryReports jadvaliga qo‘shamiz
+    INSERT INTO olmabank_risk.RegulatoryReports (ReportType, SubmissionDate)
+    VALUES (@ReportType, @SubmissionDate);
+
+    SET @i = @i + 1;
+END;
+GO
+
+
+
+
+
+
+
