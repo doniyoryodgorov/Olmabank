@@ -526,6 +526,99 @@ END;
 GO
 
 
+USE olmabank;
+GO
+
+create schema Olmabank_hr;
+create schema Olmabank_investments;
+create schema Olmabank_insurance;
+
+USE olmabank;
+GO
+
+-- 1️⃣ Departments (Bo‘limlar jadvali)
+CREATE TABLE olmabank_hr.Departments (
+    DepartmentID INT PRIMARY KEY IDENTITY(1,1),
+    DepartmentName NVARCHAR(100) NOT NULL,
+    ManagerID INT NOT NULL
+);
+GO
+
+--olmabank_hr.Departments jadvali avtomatik ravishda yaratildi
+
+-- 2️⃣ Salaries (Xodimlarning ish haqi jadvali)
+CREATE TABLE olmabank_hr.Salaries (
+    SalaryID INT PRIMARY KEY IDENTITY(1,1),
+    EmployeeID INT NOT NULL,
+    BaseSalary DECIMAL(18,2) NOT NULL CHECK (BaseSalary > 0),
+    Bonus DECIMAL(18,2) DEFAULT 0.00,
+    Deductions DECIMAL(18,2) DEFAULT 0.00,
+    PaymentDate DATE NOT NULL,
+    CONSTRAINT FK_Salaries_Employees FOREIGN KEY (EmployeeID) REFERENCES olmabank_core.Employees(EmployeeID)
+);
+GO
+
+-- 3️⃣ EmployeeAttendance (Xodimlarning qatnovi jadvali)
+
+
+CREATE TABLE olmabank_hr.EmployeeAttendance (
+    AttendanceID INT PRIMARY KEY IDENTITY(1,1),
+    EmployeeID INT NOT NULL,
+    CheckInTime DATETIME NOT NULL,
+    CheckOutTime DATETIME NOT NULL,
+    TotalHours DECIMAL(5,2) NOT NULL CHECK (TotalHours >= 0),
+    CONSTRAINT FK_EmployeeAttendance_Employees FOREIGN KEY (EmployeeID) REFERENCES olmabank_core.Employees(EmployeeID)
+);
+GO
+
+USE olmabank;
+GO
+
+DECLARE @EmployeeID INT;
+DECLARE @CheckInTime DATETIME;
+DECLARE @CheckOutTime DATETIME;
+DECLARE @TotalHours DECIMAL(5,2);
+DECLARE @CurrentDate DATE = '2022-02-01';
+DECLARE @HireDate DATE;
+
+WHILE @CurrentDate <= '2025-02-01'
+BEGIN
+    -- Faqat ish kunlari: Dushanbadan Jumagacha (1-5)
+    IF DATEPART(WEEKDAY, @CurrentDate) IN (2,3,4,5,6) -- Monday to Friday in SQL Server (1=Sunday, 7=Saturday)
+    BEGIN
+        SET @EmployeeID = 1;
+        
+        WHILE @EmployeeID <= 1000 -- Assuming 1000 employees
+        BEGIN
+            -- Xodimning HireDate ni aniqlaymiz
+            SELECT @HireDate = HireDate FROM olmabank_core.Employees WHERE EmployeeID = @EmployeeID;
+            
+            -- Agar HireDate @CurrentDate dan keyin bo'lsa, qator qo'shmaslik
+            IF @HireDate IS NOT NULL AND @HireDate <= @CurrentDate
+            BEGIN
+                -- Tasodifiy CheckInTime (08:00 - 10:00 oralig'ida)
+                SET @CheckInTime = DATEADD(MINUTE, RAND() * 120, CAST(@CurrentDate AS DATETIME) + '08:00');
+
+                -- Tasodifiy CheckOutTime (17:30 - 20:00 oralig'ida)
+                SET @CheckOutTime = DATEADD(MINUTE, RAND() * 150, CAST(@CurrentDate AS DATETIME) + '17:30');
+
+                -- TotalHours hisoblash
+                SET @TotalHours = DATEDIFF(MINUTE, @CheckInTime, @CheckOutTime) / 60.0;
+
+                -- Ma’lumotlarni EmployeeAttendance jadvaliga qo‘shish
+                INSERT INTO olmabank_hr.EmployeeAttendance (EmployeeID, CheckInTime, CheckOutTime, TotalHours)
+                VALUES (@EmployeeID, @CheckInTime, @CheckOutTime, @TotalHours);
+            END;
+
+            SET @EmployeeID = @EmployeeID + 1;
+        END;
+    END;
+
+    SET @CurrentDate = DATEADD(DAY, 1, @CurrentDate);
+END;
+GO
+
+
 
 
 
