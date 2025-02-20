@@ -618,7 +618,95 @@ BEGIN
 END;
 GO
 
+USE olmabank;
+GO
 
+-- 1️⃣ Investments (Mijozlarning investitsiyalari)
+CREATE TABLE olmabank_investments.Investments (
+    InvestmentID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    InvestmentType NVARCHAR(50) NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
+    ROI DECIMAL(5,2) NOT NULL CHECK (ROI >= 0), -- Return on Investment %
+    MaturityDate DATE NOT NULL,
+    CONSTRAINT FK_Investments_Customers FOREIGN KEY (CustomerID) REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
+
+-- 2️⃣ StockTradingAccounts (Mijozlarning fond bozoridagi hisoblari)
+
+CREATE TABLE olmabank_investments.StockTradingAccounts (
+    AccountID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    BrokerageFirm NVARCHAR(100) NOT NULL,
+    TotalInvested DECIMAL(18,2) NOT NULL CHECK (TotalInvested >= 0),
+    CurrentValue DECIMAL(18,2) NOT NULL CHECK (CurrentValue >= 0),
+    CONSTRAINT FK_StockTradingAccounts_Customers FOREIGN KEY (CustomerID) REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
+
+-- 3️⃣ ForeignExchange (Valyuta almashish tranzaksiyalari)
+
+CREATE TABLE olmabank_investments.ForeignExchange (
+    FXID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    CurrencyPair NVARCHAR(10) NOT NULL,
+    ExchangeRate DECIMAL(10,4) NOT NULL CHECK (ExchangeRate > 0),
+    AmountExchanged DECIMAL(18,2) NOT NULL CHECK (AmountExchanged > 0),
+    CONSTRAINT FK_ForeignExchange_Customers FOREIGN KEY (CustomerID) REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
+
+
+USE olmabank;
+GO
+
+-- 1️⃣ InsurancePolicies (Mijozlarning sug‘urta rejalarini saqlaydi)
+CREATE TABLE olmabank_insurance.InsurancePolicies (
+    PolicyID INT PRIMARY KEY IDENTITY(1,1),
+    CustomerID INT NOT NULL,
+    InsuranceType NVARCHAR(50) NOT NULL,
+    PremiumAmount DECIMAL(18,2) NOT NULL CHECK (PremiumAmount > 0),
+    CoverageAmount DECIMAL(18,2) NOT NULL CHECK (CoverageAmount > 0),
+    CONSTRAINT FK_InsurancePolicies_Customers FOREIGN KEY (CustomerID) REFERENCES olmabank_core.Customers(CustomerID)
+);
+GO
+
+-- 2️⃣ Claims (Sug‘urta da’volarini saqlaydi)
+CREATE TABLE olmabank_insurance.Claims (
+    ClaimID INT PRIMARY KEY IDENTITY(1,1),
+    PolicyID INT NOT NULL,
+    ClaimAmount DECIMAL(18,2) NOT NULL CHECK (ClaimAmount > 0),
+    Status NVARCHAR(20) CHECK (Status IN ('Pending', 'Approved', 'Rejected')) NOT NULL,
+    FiledDate DATE NOT NULL,
+    CONSTRAINT FK_Claims_InsurancePolicies FOREIGN KEY (PolicyID) REFERENCES olmabank_insurance.InsurancePolicies(PolicyID)
+);
+GO
+
+-- 3️⃣ UserAccessLogs (Bank tizimida foydalanuvchilar harakatlarini qayd etish)
+CREATE TABLE olmabank_insurance.UserAccessLogs (
+    LogID INT PRIMARY KEY IDENTITY(1,1),
+    UserID INT NOT NULL,
+    ActionType NVARCHAR(100) NOT NULL,
+    Timestamp DATETIME DEFAULT GETDATE()
+);
+GO
+
+-- 4️⃣ CyberSecurityIncidents (Bank tizimidagi xavfsizlik buzilishi holatlarini qayd etish)
+CREATE TABLE olmabank_insurance.CyberSecurityIncidents (
+    IncidentID INT PRIMARY KEY IDENTITY(1,1),
+    AffectedSystem NVARCHAR(100) NOT NULL,
+    ReportedDate DATE NOT NULL,
+    ResolutionStatus NVARCHAR(50) CHECK (ResolutionStatus IN ('Unresolved', 'Investigating', 'Resolved')) NOT NULL
+);
+GO
 
 
 
