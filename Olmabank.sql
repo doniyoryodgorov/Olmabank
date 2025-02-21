@@ -679,6 +679,9 @@ CREATE TABLE olmabank_insurance.InsurancePolicies (
 );
 GO
 
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
+
 -- 2️⃣ Claims (Sug‘urta da’volarini saqlaydi)
 CREATE TABLE olmabank_insurance.Claims (
     ClaimID INT PRIMARY KEY IDENTITY(1,1),
@@ -690,6 +693,45 @@ CREATE TABLE olmabank_insurance.Claims (
 );
 GO
 
+USE olmabank;
+GO
+
+DECLARE @i INT = 1;
+DECLARE @PolicyID INT;
+DECLARE @ClaimAmount DECIMAL(18,2);
+DECLARE @Status NVARCHAR(20);
+DECLARE @FiledDate DATE;
+DECLARE @CoverageAmount DECIMAL(18,2);
+
+WHILE @i <= 10000
+BEGIN
+    -- PolicyID tasodifiy tanlanadi
+    SET @PolicyID = (SELECT TOP 1 PolicyID FROM olmabank_insurance.InsurancePolicies ORDER BY NEWID());
+
+    -- Policy bo‘yicha CoverageAmount ni topamiz
+    SELECT @CoverageAmount = CoverageAmount FROM olmabank_insurance.InsurancePolicies WHERE PolicyID = @PolicyID;
+
+    -- Agar CoverageAmount mavjud bo‘lsa, ClaimAmount aniqlanadi
+    IF @CoverageAmount IS NOT NULL
+    BEGIN
+        SET @ClaimAmount = ROUND(RAND() * @CoverageAmount, 2); -- ClaimAmount CoverageAmountdan oshmasin
+
+        -- Status tasodifiy tanlanadi
+        SET @Status = (SELECT TOP 1 Status FROM (VALUES ('Pending'), ('Approved'), ('Rejected')) AS S(Status));
+
+        -- FiledDate tasodifiy sanalar bilan
+        SET @FiledDate = DATEADD(DAY, -ABS(CHECKSUM(NEWID()) % 365), GETDATE());
+
+        -- Ma’lumotlarni Claims jadvaliga qo‘shish
+        INSERT INTO olmabank_insurance.Claims (PolicyID, ClaimAmount, Status, FiledDate)
+        VALUES (@PolicyID, @ClaimAmount, @Status, @FiledDate);
+    END;
+
+    SET @i = @i + 1;
+END;
+GO
+
+
 -- 3️⃣ UserAccessLogs (Bank tizimida foydalanuvchilar harakatlarini qayd etish)
 CREATE TABLE olmabank_insurance.UserAccessLogs (
     LogID INT PRIMARY KEY IDENTITY(1,1),
@@ -698,6 +740,8 @@ CREATE TABLE olmabank_insurance.UserAccessLogs (
     Timestamp DATETIME DEFAULT GETDATE()
 );
 GO
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
 
 -- 4️⃣ CyberSecurityIncidents (Bank tizimidagi xavfsizlik buzilishi holatlarini qayd etish)
 CREATE TABLE olmabank_insurance.CyberSecurityIncidents (
