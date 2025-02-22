@@ -744,6 +744,10 @@ GO
 --Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
 
 -- 4️⃣ CyberSecurityIncidents (Bank tizimidagi xavfsizlik buzilishi holatlarini qayd etish)
+
+Use Olmabank
+go
+
 CREATE TABLE olmabank_insurance.CyberSecurityIncidents (
     IncidentID INT PRIMARY KEY IDENTITY(1,1),
     AffectedSystem NVARCHAR(100) NOT NULL,
@@ -752,7 +756,37 @@ CREATE TABLE olmabank_insurance.CyberSecurityIncidents (
 );
 GO
 
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
 
+CREATE SCHEMA olmabank_merchants;
+GO
 
+USE olmabank;
+GO
+
+-- 1️⃣ Merchants (Bank bilan hamkorlik qiluvchi savdogarlar)
+CREATE TABLE olmabank_merchants.Merchants (
+    MerchantID INT PRIMARY KEY IDENTITY(1,1),
+    MerchantName NVARCHAR(100) NOT NULL,
+    Industry NVARCHAR(100) NOT NULL,
+    Location NVARCHAR(255) NOT NULL,
+    CustomerID INT NULL 
+);
+GO
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
+
+-- 2️⃣ MerchantTransactions (Savdogarlar orqali amalga oshirilgan tranzaksiyalar)
+CREATE TABLE olmabank_merchants.MerchantTransactions (
+    TransactionID INT PRIMARY KEY IDENTITY(1,1),
+    MerchantID INT NOT NULL,
+    Amount DECIMAL(18,2) NOT NULL CHECK (Amount > 0),
+    PaymentMethod NVARCHAR(50) CHECK (PaymentMethod IN ('Credit Card', 'Debit Card', 'Wire Transfer', 'Cash', 'Mobile Payment')) NOT NULL,
+    Date DATETIME NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT FK_MerchantTransactions_Merchants FOREIGN KEY (MerchantID) REFERENCES olmabank_merchants.Merchants(MerchantID)
+);
+GO
+
+--Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
 
 
