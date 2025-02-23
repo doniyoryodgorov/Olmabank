@@ -789,4 +789,97 @@ GO
 
 --Table ma'lumotlar avtomatik tarzda yasalgan ma'lumotlarni insert qilamiz
 
+--Task_1 •	Top 3 Customers with the Highest Total Balance Across All Accounts 
+
+USE olmabank;
+GO
+
+SELECT TOP 3 
+    a.CustomerID,
+    c.FullName,
+    SUM(a.Balance) AS TotalBalance
+FROM olmabank_core.Accounts a
+JOIN olmabank_core.Customers c ON a.CustomerID = c.CustomerID
+GROUP BY a.CustomerID, c.FullName
+ORDER BY TotalBalance DESC;
+
+--Task_2 •	Customers Who Have More Than One Active Loan
+
+USE olmabank;
+GO
+
+SELECT l.CustomerID, c.FullName, COUNT(l.LoanID) AS ActiveLoanCount
+FROM olmabank_loans.Loans l
+JOIN olmabank_core.Customers c ON l.CustomerID = c.CustomerID
+WHERE l.Status = 'Active'
+GROUP BY l.CustomerID, c.FullName
+HAVING COUNT(l.LoanID) > 1
+ORDER BY ActiveLoanCount DESC;
+
+--Task_3 •	Transactions That Were Flagged as Fraudulent
+
+USE olmabank;
+GO
+
+SELECT t.TransactionID, t.AccountID, t.Amount, t.Currency, t.Date, f.RiskLevel
+FROM olmabank_core.Transactions t
+JOIN olmabank_risk.FraudDetection f ON t.TransactionID = f.TransactionID
+WHERE f.RiskLevel = 'High'
+ORDER BY t.Date DESC;
+
+--Task_4 Total Loan Amount Issued Per Branch
+
+USE olmabank;
+GO
+
+SELECT a.BranchID, b.BranchName, SUM(l.Amount) AS TotalLoanIssued
+FROM olmabank_loans.Loans l
+JOIN olmabank_core.Accounts a ON l.CustomerID = a.CustomerID
+JOIN olmabank_core.Branches b ON a.BranchID = b.BranchID
+GROUP BY a.BranchID, b.BranchName
+ORDER BY TotalLoanIssued DESC;
+
+--Task_5 •Customers who made multiple large transactions (above $10,000) within a short time frame (less than 1 hour apart)
+USE olmabank;
+GO
+
+WITH LargeTransactions AS (
+    SELECT a.CustomerID, t.TransactionID, t.Amount, t.Date,
+           LAG(t.Date) OVER (PARTITION BY a.CustomerID ORDER BY t.Date) AS PreviousTransactionDate
+    FROM olmabank_core.Transactions t
+    JOIN olmabank_core.Accounts a ON t.AccountID = a.AccountID
+    WHERE t.Amount > 10000
+)
+SELECT lt.CustomerID, c.FullName, COUNT(lt.TransactionID) AS LargeTransactionCount
+FROM LargeTransactions lt
+JOIN olmabank_core.Customers c ON lt.CustomerID = c.CustomerID
+WHERE DATEDIFF(MINUTE, lt.PreviousTransactionDate, lt.Date) <= 60
+GROUP BY lt.CustomerID, c.FullName
+HAVING COUNT(lt.TransactionID) > 1
+ORDER BY LargeTransactionCount DESC;
+
+
+--Task_6 
+USE olmabank;
+GO
+
+WITH CustomerTransactions AS (
+    SELECT a.CustomerID, t.TransactionID, t.Amount, t.Date, b.BranchName AS Location,
+           LAG(b.BranchName) OVER (PARTITION BY a.CustomerID ORDER BY t.Date) AS PreviousLocation,
+           LAG(t.Date) OVER (PARTITION BY a.CustomerID ORDER BY t.Date) AS PreviousTransactionDate
+    FROM olmabank_core.Transactions t
+    JOIN olmabank_core.Accounts a ON t.AccountID = a.AccountID
+    JOIN olmabank_core.Branches b ON a.BranchID = b.BranchID
+)
+SELECT ct.CustomerID, c.FullName, ct.Location, ct.PreviousLocation, ct.Date
+FROM CustomerTransactions ct
+JOIN olmabank_core.Customers c ON ct.CustomerID = c.CustomerID
+WHERE ct.PreviousLocation IS NOT NULL 
+  AND ct.Location <> ct.PreviousLocation
+  AND DATEDIFF(MINUTE, ct.PreviousTransactionDate, ct.Date) <= 10
+ORDER BY ct.Date DESC;
+
+
+
+
 
