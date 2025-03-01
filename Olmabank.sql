@@ -96,17 +96,20 @@ CREATE TABLE Olmabank_core.Employees (
 
 ----Olmabank_core.Employees jadvaliga ma'lumotni avtomat tartibda yaratib qo'shamiz
 
-CREATE TABLE Olmabank_core.Branches (
+USE OLMABANK
+GO
+
+CREATE TABLE olmabank_core.Branches (
     BranchID INT PRIMARY KEY IDENTITY(1,1),
     BranchName NVARCHAR(100) NOT NULL,
     Address NVARCHAR(255) NOT NULL,
-    City NVARCHAR(50) NOT NULL,
-    State NVARCHAR(50),
-    Country NVARCHAR(50) NOT NULL,
-    ManagerID INT UNIQUE NULL,
-    ContactNumber NVARCHAR(20),
-    CONSTRAINT FK_Branches_Manager FOREIGN KEY (ManagerID) REFERENCES olmabank_core.Employees(EmployeeID)
+    City NVARCHAR(100) NOT NULL,
+    State NVARCHAR(100) NOT NULL,
+    Country NVARCHAR(100) NOT NULL,
+    ManagerID INT UNIQUE NOT NULL, -- ManagerID endi UNIQUE bo‘lishi kerak
+    ContactNumber NVARCHAR(20) NOT NULL
 );
+GO
 
 --Olmabank_core.Branches  jadvaliga ma'lumotni avtomat tartibda yaratib qo'shamiz.
 
@@ -536,14 +539,14 @@ create schema Olmabank_insurance;
 USE olmabank;
 GO
 
+
 -- 1️⃣ Departments (Bo‘limlar jadvali)
 CREATE TABLE olmabank_hr.Departments (
-    DepartmentID INT PRIMARY KEY IDENTITY(1,1),
+    ManagerID INT PRIMARY KEY, -- ManagerID endi PK
     DepartmentName NVARCHAR(100) NOT NULL,
-    ManagerID INT NOT NULL
+    CONSTRAINT FK_Departments_Branches FOREIGN KEY (ManagerID) REFERENCES olmabank_core.Branches(ManagerID)
 );
 GO
-
 --olmabank_hr.Departments jadvali avtomatik ravishda yaratildi
 
 -- 2️⃣ Salaries (Xodimlarning ish haqi jadvali)
